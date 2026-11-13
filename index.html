@@ -1,0 +1,1775 @@
+<!DOCTYPE html>
+<html lang="zh-HK" class="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PomodoroTimerX — 專注蕃茄鐘</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', '"Noto Sans TC"', '"PingFang TC"', '"Microsoft JhengHei"', 'sans-serif'],
+            mono: ['"Chakra Petch"', '"JetBrains Mono"', 'monospace']
+          },
+          colors: {
+            brand: {
+              cyan: '#00A3FF',
+              cyanHover: '#008BDB',
+              coral: '#FF3B5C',
+              coralHover: '#E02D4B',
+              warn: '#DC2626'
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    :root {
+      --app-scale: 1;
+      --info-scale: 1;
+    }
+    html {
+      font-size: calc(16px * var(--app-scale));
+    }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    .timer-digits {
+      font-family: 'Chakra Petch', 'JetBrains Mono', monospace;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.08em;
+      line-height: 1;
+    }
+    .info-scaled-label {
+      font-size: calc(0.875rem * var(--info-scale));
+      line-height: 1.4;
+    }
+    .info-scaled-value {
+      font-size: calc(1.125rem * var(--info-scale));
+      line-height: 1.4;
+    }
+    /* Custom subtle scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.4);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(100, 116, 139, 0.6);
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-[#F8FAFC] dark:bg-[#0F172A] text-[#0F172A] dark:text-[#F8FAFC] p-4 md:p-8 flex flex-col justify-between transition-colors duration-300 select-none">
+
+  <!-- Top Right Floating Show-Toolbar Button (When Toolbar is Hidden) -->
+  <button id="btn-show-toolbar" type="button" title="顯示工具列 (H)"
+    class="hidden fixed top-4 right-4 z-40 w-10 h-10 rounded-full bg-[#00A3FF] hover:bg-[#008BDB] text-white shadow-md flex items-center justify-center transition-all cursor-pointer">
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6" />
+    </svg>
+  </button>
+
+  <!-- Header / Toolbar Area -->
+  <header id="header-toolbar" class="w-full max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3 mb-4 transition-all duration-300">
+    <!-- Left Subtle Brand Pill -->
+    <div class="flex items-center gap-2.5">
+      <div id="phase-status-dot" class="w-3 h-3 rounded-full bg-[#00A3FF] transition-colors"></div>
+      <span class="font-bold tracking-tight text-base text-slate-800 dark:text-slate-100">PomodoroTimerX</span>
+      <span id="header-mode-badge" class="text-xs font-medium px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300 border border-sky-200 dark:border-sky-800/60">
+        專注時段
+      </span>
+    </div>
+
+    <!-- Right-Aligned ExamTimerX 9-Control Floating Toolbar -->
+    <div class="flex flex-wrap items-center justify-end gap-1.5 bg-white dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-slate-700/60 rounded-xl p-1.5 shadow-sm">
+      <!-- 1. Decrease Base Font Size -->
+      <button id="btn-font-dec" type="button" title="縮小介面字型"
+        class="w-9 h-9 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700/70 text-slate-600 dark:text-slate-300 flex items-center justify-center transition-colors cursor-pointer">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14" />
+        </svg>
+      </button>
+
+      <!-- 2. Increase Base Font Size -->
+      <button id="btn-font-inc" type="button" title="放大介面字型"
+        class="w-9 h-9 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700/70 text-slate-600 dark:text-slate-300 flex items-center justify-center transition-colors cursor-pointer">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14m-7-7h14" />
+        </svg>
+      </button>
+
+      <div class="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-0.5"></div>
+
+      <!-- 3. Theme Toggle (Sun / Moon) -->
+      <button id="btn-theme" type="button" title="切換深淺色主題"
+        class="w-9 h-9 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700/70 text-slate-600 dark:text-slate-300 flex items-center justify-center transition-colors cursor-pointer">
+        <!-- Sun Icon (shown in dark mode) -->
+        <svg id="icon-sun" class="hidden w-4 h-4 text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="4" />
+          <path stroke-linecap="round" d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+        </svg>
+        <!-- Moon Icon (shown in light mode) -->
+        <svg id="icon-moon" class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        </svg>
+      </button>
+
+      <!-- 4. Settings Button (SlidersHorizontal) -->
+      <button id="btn-settings" type="button" title="蕃茄鐘設定"
+        class="w-9 h-9 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700/70 text-slate-600 dark:text-slate-300 flex items-center justify-center transition-colors cursor-pointer">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <line x1="21" x2="14" y1="4" y2="4" />
+          <line x1="10" x2="3" y1="4" y2="4" />
+          <line x1="21" x2="12" y1="12" y2="12" />
+          <line x1="8" x2="3" y1="12" y2="12" />
+          <line x1="21" x2="16" y1="20" y2="20" />
+          <line x1="12" x2="3" y1="20" y2="20" />
+          <line x1="14" x2="14" y1="2" y2="6" />
+          <line x1="8" x2="8" y1="10" y2="14" />
+          <line x1="16" x2="16" y1="18" y2="22" />
+        </svg>
+      </button>
+
+      <!-- 5. Language Toggle (繁 / EN) -->
+      <button id="btn-lang" type="button" title="切換語言 / Switch Language"
+        class="h-9 px-2.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700/70 text-slate-700 dark:text-slate-200 text-xs font-bold tracking-wide flex items-center justify-center transition-colors cursor-pointer">
+        繁
+      </button>
+
+      <!-- 6. Fullscreen Toggle -->
+      <button id="btn-fullscreen" type="button" title="全螢幕切換 (F)"
+        class="w-9 h-9 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700/70 text-slate-600 dark:text-slate-300 flex items-center justify-center transition-colors cursor-pointer">
+        <svg id="icon-max" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <polyline points="15 3 21 3 21 9" />
+          <polyline points="9 21 3 21 3 15" />
+          <line x1="21" x2="14" y1="3" y2="10" />
+          <line x1="3" x2="10" y1="21" y2="14" />
+        </svg>
+      </button>
+
+      <!-- 7. User Manual Button (BookOpen) -->
+      <button id="btn-manual" type="button" title="用戶手冊"
+        class="w-9 h-9 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700/70 text-slate-600 dark:text-slate-300 flex items-center justify-center transition-colors cursor-pointer">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+          <path stroke-linecap="round" stroke-linejoin="round" d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+        </svg>
+      </button>
+
+      <div class="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-0.5"></div>
+
+      <!-- 8. Real-time System Clock -->
+      <div class="flex items-center gap-1.5 px-2.5 h-9 rounded-lg bg-slate-50 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-700/60 text-slate-700 dark:text-slate-200">
+        <svg class="w-3.5 h-3.5 text-[#00A3FF]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
+        <span id="system-clock" class="font-mono text-xs font-semibold tabular-nums tracking-wider">08:30:00</span>
+      </div>
+
+      <!-- 9. Hide Toolbar Button (^) -->
+      <button id="btn-hide-toolbar" type="button" title="隱藏工具列 (H)"
+        class="w-9 h-9 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700/70 text-slate-500 dark:text-slate-400 flex items-center justify-center transition-colors cursor-pointer">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="m18 15-6-6-6 6" />
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content Stack -->
+  <main class="w-full max-w-6xl mx-auto flex-1 flex flex-col justify-center gap-5 my-auto">
+
+    <!-- Main Timer Card (ExamTimerX Primary Card Layout) -->
+    <section class="relative bg-white dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-slate-700/60 rounded-2xl p-6 md:p-10 shadow-sm transition-colors duration-300 overflow-hidden">
+
+      <!-- Phase Mode Switcher & Cycle Dots Row -->
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
+        <!-- 3 Phase Pill Tabs -->
+        <div class="inline-flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-700/60">
+          <button id="tab-focus" type="button"
+            class="px-4 py-1.5 rounded-lg text-sm font-semibold transition-all cursor-pointer bg-[#00A3FF] text-white shadow-sm">
+            <span data-i18n="modeFocus">專注時段</span>
+          </button>
+          <button id="tab-short" type="button"
+            class="px-4 py-1.5 rounded-lg text-sm font-semibold transition-all cursor-pointer text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white">
+            <span data-i18n="modeShort">短休息</span>
+          </button>
+          <button id="tab-long" type="button"
+            class="px-4 py-1.5 rounded-lg text-sm font-semibold transition-all cursor-pointer text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white">
+            <span data-i18n="modeLong">長休息</span>
+          </button>
+        </div>
+
+        <!-- Cycle Progress Dots & Format Toggle -->
+        <div class="flex items-center gap-3">
+          <div id="cycle-dots-container" class="flex items-center gap-1.5" title="蕃茄鐘循環進度">
+            <!-- Dynamically populated cycle dots -->
+          </div>
+          <span id="cycle-badge-text" class="text-xs font-semibold text-slate-500 dark:text-slate-400">
+            第 1 / 4 個蕃茄鐘
+          </span>
+          <button id="btn-toggle-format" type="button" title="切換 MM:SS / HH:MM:SS 格式"
+            class="text-xs font-mono px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+            MM:SS
+          </button>
+        </div>
+      </div>
+
+      <!-- Centered "剩餘時間" Label -->
+      <div class="text-center mb-2">
+        <p id="label-time-left" data-i18n="timeLeft" class="text-sm md:text-base font-medium text-[#64748B] dark:text-[#94A3B8] tracking-wide">
+          剩餘時間
+        </p>
+      </div>
+
+      <!-- Giant Timer Digits with Left (-) and Right (+) Circular Buttons -->
+      <div class="flex items-center justify-center gap-3 sm:gap-6 md:gap-10 my-3 md:my-5">
+        <!-- Minus 1 Min Button -->
+        <button id="btn-minus-time" type="button" title="減少 1 分鐘 (-1m)"
+          class="w-10 h-10 sm:w-12 sm:h-12 rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center transition-all active:scale-95 cursor-pointer shrink-0">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14" />
+          </svg>
+        </button>
+
+        <!-- Clickable Timer Digits (Opens Edit Time Modal) -->
+        <button id="btn-edit-time-trigger" type="button" title="點擊編輯時間"
+          class="group relative px-3 py-2 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer">
+          <span id="timer-display"
+            class="timer-digits block text-6xl sm:text-8xl md:text-9xl font-bold text-[#0F172A] dark:text-[#F8FAFC] transition-colors duration-200">
+            25:00
+          </span>
+          <span id="label-click-edit" data-i18n="clickToEdit"
+            class="block text-[11px] font-medium text-slate-400 dark:text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity mt-1">
+            點擊數字直接編輯時間
+          </span>
+        </button>
+
+        <!-- Plus 1 Min Button -->
+        <button id="btn-plus-time" type="button" title="增加 1 分鐘 (+1m)"
+          class="w-10 h-10 sm:w-12 sm:h-12 rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center transition-all active:scale-95 cursor-pointer shrink-0">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14m-7-7h14" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Action Buttons Row: Start (Cyan) / Stop (Disabled Gray or Active) / Reset (Coral Red) / Skip -->
+      <div class="flex flex-wrap items-center justify-center gap-3 sm:gap-4 mt-6">
+        <button id="btn-start" type="button"
+          class="bg-[#00A3FF] hover:bg-[#008BDB] text-white font-semibold px-7 py-2.5 rounded-xl shadow-sm transition-all active:scale-95 cursor-pointer min-w-[104px]">
+          <span data-i18n="btnStart">開始</span>
+        </button>
+
+        <button id="btn-stop" type="button" disabled
+          class="bg-[#F1F5F9] dark:bg-slate-800/90 text-slate-400 dark:text-slate-500 border border-slate-200/80 dark:border-slate-700/60 font-semibold px-7 py-2.5 rounded-xl transition-all cursor-not-allowed min-w-[104px]">
+          <span data-i18n="btnStop">停止</span>
+        </button>
+
+        <button id="btn-reset" type="button"
+          class="bg-[#FF3B5C] hover:bg-[#E02D4B] text-white font-semibold px-7 py-2.5 rounded-xl shadow-sm transition-all active:scale-95 cursor-pointer min-w-[104px]">
+          <span data-i18n="btnReset">重設</span>
+        </button>
+
+        <button id="btn-skip" type="button" title="跳過當前階段 (S)"
+          class="bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-medium px-4 py-2.5 rounded-xl transition-all active:scale-95 cursor-pointer flex items-center gap-1.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <polygon points="5 4 15 12 5 20 5 4" />
+            <line x1="19" x2="19" y1="5" y2="19" />
+          </svg>
+          <span data-i18n="btnSkip" class="text-sm">跳過</span>
+        </button>
+      </div>
+
+      <!-- Bottom Subtle Progress Bar inside Timer Card -->
+      <div class="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden mt-7">
+        <div id="timer-progress-bar" class="h-full bg-[#00A3FF] transition-all duration-300" style="width: 0%;"></div>
+      </div>
+    </section>
+
+    <!-- Bottom Information Card (Mirrors ExamTimerX's "考試資訊" 4x2 Grid Card) -->
+    <section class="bg-white dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-slate-700/60 rounded-2xl p-6 md:p-8 shadow-sm transition-colors duration-300">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-5 pb-3 border-b border-slate-100 dark:border-slate-700/50">
+        <div class="flex items-center gap-2.5">
+          <h2 id="info-card-title" data-i18n="infoTitle" class="text-xl md:text-2xl font-bold text-[#0F172A] dark:text-[#F8FAFC]">
+            專注資訊
+          </h2>
+          <span id="warning-indicator-pill" class="hidden text-xs font-semibold px-2.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">
+            最後衝刺預警
+          </span>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button id="btn-toggle-tasks" type="button"
+            class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 transition-colors cursor-pointer">
+            <svg class="w-3.5 h-3.5 text-[#00A3FF]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 11l3 3L22 4" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+            </svg>
+            <span data-i18n="btnTaskList">待辦任務清單</span>
+            <span id="task-count-badge" class="px-1.5 py-0.2 rounded-full bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300 text-[11px]">3</span>
+          </button>
+
+          <button id="btn-quick-edit-info" type="button"
+            class="text-xs font-medium px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer">
+            <span data-i18n="btnEditInfo">設定資訊</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ExamTimerX Signature 4 Columns x 2 Rows Grid -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 text-slate-700 dark:text-slate-300">
+        <!-- Column 1: 當前任務 | 專注時長 -->
+        <div class="space-y-4">
+          <div>
+            <div data-i18n="lblTask" class="info-scaled-label font-medium text-[#64748B] dark:text-[#94A3B8]">當前任務：</div>
+            <div id="info-task" class="info-scaled-value font-bold text-[#0F172A] dark:text-[#F8FAFC] break-words mt-0.5">批改 F.3 英文作文 (Paper 2)</div>
+          </div>
+          <div>
+            <div data-i18n="lblDuration" class="info-scaled-label font-medium text-[#64748B] dark:text-[#94A3B8]">階段時長：</div>
+            <div id="info-duration" class="info-scaled-value font-bold text-[#0F172A] dark:text-[#F8FAFC] mt-0.5">25 分鐘</div>
+          </div>
+        </div>
+
+        <!-- Column 2: 任務編號/類別 | 開始時間 -->
+        <div class="space-y-4">
+          <div>
+            <div data-i18n="lblCategory" class="info-scaled-label font-medium text-[#64748B] dark:text-[#94A3B8]">工作類別：</div>
+            <div id="info-category" class="info-scaled-value font-bold text-[#0F172A] dark:text-[#F8FAFC] mt-0.5">教學與批改 (ENG-F3)</div>
+          </div>
+          <div>
+            <div data-i18n="lblStartTime" class="info-scaled-label font-medium text-[#64748B] dark:text-[#94A3B8]">開始時間：</div>
+            <div id="info-start-time" class="info-scaled-value font-bold font-mono text-[#0F172A] dark:text-[#F8FAFC] mt-0.5">08:30</div>
+          </div>
+        </div>
+
+        <!-- Column 3: 當前階段 | 預計完成 -->
+        <div class="space-y-4">
+          <div>
+            <div data-i18n="lblPhase" class="info-scaled-label font-medium text-[#64748B] dark:text-[#94A3B8]">當前階段：</div>
+            <div id="info-phase" class="info-scaled-value font-bold text-[#00A3FF] mt-0.5">專注時段 (第 1/4 輪)</div>
+          </div>
+          <div>
+            <div data-i18n="lblEndTime" class="info-scaled-label font-medium text-[#64748B] dark:text-[#94A3B8]">結束時間：</div>
+            <div id="info-end-time" class="info-scaled-value font-bold font-mono text-[#0F172A] dark:text-[#F8FAFC] mt-0.5">08:55 (全輪 10:25)</div>
+          </div>
+        </div>
+
+        <!-- Column 4: 今日完成 | 休息配置 -->
+        <div class="space-y-4">
+          <div>
+            <div data-i18n="lblCompleted" class="info-scaled-label font-medium text-[#64748B] dark:text-[#94A3B8]">今日已完成：</div>
+            <div id="info-completed" class="info-scaled-value font-bold text-[#0F172A] dark:text-[#F8FAFC] mt-0.5">0 個蕃茄 (0 分鐘)</div>
+          </div>
+          <div>
+            <div data-i18n="lblBreakRule" class="info-scaled-label font-medium text-[#64748B] dark:text-[#94A3B8]">休息模式：</div>
+            <div id="info-break-rule" class="info-scaled-value font-bold text-[#0F172A] dark:text-[#F8FAFC] mt-0.5">短休 5 分鐘 / 長休 15 分鐘</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Collapsible Task Queue Drawer Inside Info Card -->
+      <div id="task-drawer" class="hidden mt-6 pt-5 border-t border-slate-200/80 dark:border-slate-700/60">
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-4">
+          <div>
+            <h3 data-i18n="taskQueueHeading" class="text-sm font-bold text-slate-800 dark:text-slate-100">
+              待辦專注任務清單（點擊任務即可設為「當前任務」）
+            </h3>
+          </div>
+          <div class="flex items-center gap-2">
+            <input id="input-new-task" type="text" placeholder="輸入新任務名稱..."
+              class="flex-1 sm:w-64 px-3 py-1.5 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-[#00A3FF]" />
+            <select id="select-new-task-pomos" title="預計蕃茄鐘數目"
+              class="px-2.5 py-1.5 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100">
+              <option value="1">1 🍅</option>
+              <option value="2" selected>2 🍅</option>
+              <option value="3">3 🍅</option>
+              <option value="4">4 🍅</option>
+            </select>
+            <button id="btn-add-task" type="button"
+              class="px-3.5 py-1.5 rounded-lg bg-[#00A3FF] hover:bg-[#008BDB] text-white text-sm font-semibold transition-colors cursor-pointer shrink-0">
+              <span data-i18n="btnAdd">新增</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="task-list-container" class="space-y-2 max-h-52 overflow-y-auto pr-1">
+          <!-- Populated dynamically by JS -->
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer (Exact ExamTimerX Signature Footer) -->
+  <footer class="w-full max-w-6xl mx-auto text-center pt-5 pb-1">
+    <p id="footer-credit" data-i18n="footerCredit" class="text-xs font-medium text-[#64748B] dark:text-[#94A3B8]">
+      由鍾永老師製作
+    </p>
+  </footer>
+
+  <!-- Toast Notification -->
+  <div id="toast-banner"
+    class="fixed bottom-5 right-5 z-50 hidden items-center gap-2.5 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-4 py-3 rounded-xl shadow-lg text-sm font-medium transition-all">
+    <span class="w-2.5 h-2.5 rounded-full bg-[#00A3FF]"></span>
+    <span id="toast-message">階段已完成！</span>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- MODAL 1: 蕃茄鐘設定 (Pomodoro Settings Modal - ExamTimerX Style) -->
+  <!-- ================================================================= -->
+  <div id="modal-settings" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-[2px] p-4">
+    <div class="bg-white dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-slate-700 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 md:p-8 shadow-xl">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-700">
+        <h3 data-i18n="settingsModalTitle" class="text-xl font-bold text-slate-900 dark:text-white">蕃茄鐘設定</h3>
+        <button id="btn-close-settings" type="button"
+          class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center justify-center text-slate-500 cursor-pointer">
+          ✕
+        </button>
+      </div>
+
+      <div class="space-y-5 my-5 text-sm">
+        <!-- Quick Scenario Templates -->
+        <div>
+          <label data-i18n="lblPresetTemplates" class="block font-semibold text-slate-700 dark:text-slate-300 mb-2">快速場景範本：</label>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" data-template="marking"
+              class="btn-scenario-preset px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-[#00A3FF] hover:text-[#00A3FF] text-xs font-medium transition-colors cursor-pointer">
+              批改試卷 / 作文 (25/5)
+            </button>
+            <button type="button" data-template="prep"
+              class="btn-scenario-preset px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-[#00A3FF] hover:text-[#00A3FF] text-xs font-medium transition-colors cursor-pointer">
+              備課與教材設計 (45/10)
+            </button>
+            <button type="button" data-template="study"
+              class="btn-scenario-preset px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-[#00A3FF] hover:text-[#00A3FF] text-xs font-medium transition-colors cursor-pointer">
+              課室自修 / 溫習 (50/10)
+            </button>
+            <button type="button" data-template="drill"
+              class="btn-scenario-preset px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-[#00A3FF] hover:text-[#00A3FF] text-xs font-medium transition-colors cursor-pointer">
+              隨堂限時練習 (15/3)
+            </button>
+          </div>
+        </div>
+
+        <!-- Task Name & Category -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label for="input-setting-task" data-i18n="lblTaskInput" class="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">當前任務名稱</label>
+            <input id="input-setting-task" type="text"
+              class="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:border-[#00A3FF]" />
+          </div>
+          <div>
+            <label for="input-setting-category" data-i18n="lblCategoryInput" class="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">工作類別 / 編號</label>
+            <input id="input-setting-category" type="text"
+              class="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:border-[#00A3FF]" />
+          </div>
+        </div>
+
+        <!-- Focus Duration + Quick Select Buttons (ExamTimerX Style) -->
+        <div>
+          <label for="input-setting-focus" data-i18n="lblFocusDuration" class="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">專注時長（分鐘）</label>
+          <div class="flex flex-wrap items-center gap-2">
+            <input id="input-setting-focus" type="number" min="1" max="180"
+              class="w-24 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-mono font-bold focus:outline-none focus:border-[#00A3FF]" />
+            <div class="flex flex-wrap gap-1.5">
+              <button type="button" data-focus-preset="15" class="btn-focus-preset px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-[#00A3FF] hover:text-white text-xs font-semibold transition-colors cursor-pointer">15m</button>
+              <button type="button" data-focus-preset="25" class="btn-focus-preset px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-[#00A3FF] hover:text-white text-xs font-semibold transition-colors cursor-pointer">25m</button>
+              <button type="button" data-focus-preset="30" class="btn-focus-preset px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-[#00A3FF] hover:text-white text-xs font-semibold transition-colors cursor-pointer">30m</button>
+              <button type="button" data-focus-preset="45" class="btn-focus-preset px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-[#00A3FF] hover:text-white text-xs font-semibold transition-colors cursor-pointer">45m</button>
+              <button type="button" data-focus-preset="50" class="btn-focus-preset px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-[#00A3FF] hover:text-white text-xs font-semibold transition-colors cursor-pointer">50m</button>
+              <button type="button" data-focus-preset="60" class="btn-focus-preset px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-[#00A3FF] hover:text-white text-xs font-semibold transition-colors cursor-pointer">60m</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Short Break, Long Break & Cycle Interval -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label for="input-setting-short" data-i18n="lblShortDuration" class="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">短休息（分鐘）</label>
+            <input id="input-setting-short" type="number" min="1" max="60"
+              class="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-mono font-bold focus:outline-none focus:border-[#00A3FF]" />
+          </div>
+          <div>
+            <label for="input-setting-long" data-i18n="lblLongDuration" class="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">長休息（分鐘）</label>
+            <input id="input-setting-long" type="number" min="1" max="90"
+              class="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-mono font-bold focus:outline-none focus:border-[#00A3FF]" />
+          </div>
+          <div>
+            <label for="input-setting-cycles" data-i18n="lblLongInterval" class="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">長休息間隔（輪數）</label>
+            <input id="input-setting-cycles" type="number" min="2" max="10"
+              class="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-mono font-bold focus:outline-none focus:border-[#00A3FF]" />
+          </div>
+        </div>
+
+        <!-- Start Time & Auto-Calculated End Time -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label for="input-setting-start-time" data-i18n="lblStartClock" class="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">開始時間（自動推算結束時間）</label>
+            <input id="input-setting-start-time" type="time"
+              class="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-mono focus:outline-none focus:border-[#00A3FF]" />
+          </div>
+          <div>
+            <label for="select-setting-sound" data-i18n="lblSoundType" class="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">完成提示音效</label>
+            <div class="flex items-center gap-2">
+              <select id="select-setting-sound"
+                class="flex-1 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:border-[#00A3FF]">
+                <option value="bell">經典考場鐘聲 (Classic Bell)</option>
+                <option value="digital">數碼雙響提示 (Digital Beep)</option>
+                <option value="chord">柔和木琴和弦 (Soft Chord)</option>
+                <option value="mute">靜音 (Mute)</option>
+              </select>
+              <button id="btn-test-sound" type="button"
+                class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold cursor-pointer">
+                試聽
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Toggles: Auto-start & Red Warning -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+          <label class="flex items-center gap-2.5 p-3 rounded-xl border border-slate-200 dark:border-slate-700/70 cursor-pointer">
+            <input id="chk-auto-break" type="checkbox" class="w-4 h-4 accent-[#00A3FF]" />
+            <span data-i18n="lblAutoBreak" class="text-slate-700 dark:text-slate-200 font-medium">專注結束後自動開始休息</span>
+          </label>
+          <label class="flex items-center gap-2.5 p-3 rounded-xl border border-slate-200 dark:border-slate-700/70 cursor-pointer">
+            <input id="chk-auto-focus" type="checkbox" class="w-4 h-4 accent-[#00A3FF]" />
+            <span data-i18n="lblAutoFocus" class="text-slate-700 dark:text-slate-200 font-medium">休息結束後自動開始下一輪專注</span>
+          </label>
+        </div>
+
+        <!-- Info Card Font Scale (ExamTimerX 100% / 115% / 130% / 150%) -->
+        <div>
+          <label data-i18n="lblInfoScale" class="block font-semibold text-slate-700 dark:text-slate-300 mb-2">專注資訊卡片字型比例：</label>
+          <div class="grid grid-cols-4 gap-2">
+            <button type="button" data-info-scale="1" class="btn-info-scale py-2 rounded-xl border border-slate-200 dark:border-slate-700 font-semibold text-xs transition-colors cursor-pointer">100%</button>
+            <button type="button" data-info-scale="1.15" class="btn-info-scale py-2 rounded-xl border border-slate-200 dark:border-slate-700 font-semibold text-xs transition-colors cursor-pointer">115%</button>
+            <button type="button" data-info-scale="1.3" class="btn-info-scale py-2 rounded-xl border border-slate-200 dark:border-slate-700 font-semibold text-xs transition-colors cursor-pointer">130%</button>
+            <button type="button" data-info-scale="1.5" class="btn-info-scale py-2 rounded-xl border border-slate-200 dark:border-slate-700 font-semibold text-xs transition-colors cursor-pointer">150%</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
+        <button id="btn-cancel-settings" type="button"
+          class="px-5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-semibold text-sm hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
+          <span data-i18n="btnCancel">取消</span>
+        </button>
+        <button id="btn-save-settings" type="button"
+          class="px-6 py-2 rounded-xl bg-[#00A3FF] hover:bg-[#008BDB] text-white font-semibold text-sm shadow-sm cursor-pointer">
+          <span data-i18n="btnSave">儲存設定</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- MODAL 2: 編輯時間 (Edit Time Modal - ExamTimerX +/- Stepper Style) -->
+  <!-- ================================================================= -->
+  <div id="modal-edit-time" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-[2px] p-4">
+    <div class="bg-white dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-slate-700 rounded-2xl max-w-md w-full p-6 md:p-8 shadow-xl">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-700">
+        <h3 data-i18n="editTimeModalTitle" class="text-xl font-bold text-slate-900 dark:text-white">編輯倒數時間</h3>
+        <button id="btn-close-edit-time" type="button"
+          class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center justify-center text-slate-500 cursor-pointer">
+          ✕
+        </button>
+      </div>
+
+      <!-- Hours / Minutes / Seconds Steppers -->
+      <div class="grid grid-cols-3 gap-4 my-6 text-center">
+        <!-- Hours -->
+        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-700">
+          <div data-i18n="lblHours" class="text-xs font-medium text-slate-500 mb-2">小時</div>
+          <button id="btn-hr-inc" type="button"
+            class="w-9 h-9 mx-auto rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-[#00A3FF] flex items-center justify-center font-bold cursor-pointer">+</button>
+          <div id="edit-hr-val" class="font-mono text-3xl font-bold my-2 tabular-nums">00</div>
+          <button id="btn-hr-dec" type="button"
+            class="w-9 h-9 mx-auto rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-[#00A3FF] flex items-center justify-center font-bold cursor-pointer">−</button>
+        </div>
+
+        <!-- Minutes -->
+        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-700">
+          <div data-i18n="lblMinutes" class="text-xs font-medium text-slate-500 mb-2">分鐘</div>
+          <button id="btn-min-inc" type="button"
+            class="w-9 h-9 mx-auto rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-[#00A3FF] flex items-center justify-center font-bold cursor-pointer">+</button>
+          <div id="edit-min-val" class="font-mono text-3xl font-bold my-2 tabular-nums">25</div>
+          <button id="btn-min-dec" type="button"
+            class="w-9 h-9 mx-auto rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-[#00A3FF] flex items-center justify-center font-bold cursor-pointer">−</button>
+        </div>
+
+        <!-- Seconds -->
+        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-700">
+          <div data-i18n="lblSeconds" class="text-xs font-medium text-slate-500 mb-2">秒數</div>
+          <button id="btn-sec-inc" type="button"
+            class="w-9 h-9 mx-auto rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-[#00A3FF] flex items-center justify-center font-bold cursor-pointer">+</button>
+          <div id="edit-sec-val" class="font-mono text-3xl font-bold my-2 tabular-nums">00</div>
+          <button id="btn-sec-dec" type="button"
+            class="w-9 h-9 mx-auto rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-[#00A3FF] flex items-center justify-center font-bold cursor-pointer">−</button>
+        </div>
+      </div>
+
+      <!-- Quick Presets inside Edit Time Modal -->
+      <div class="flex flex-wrap justify-center gap-2 mb-6">
+        <button type="button" data-quick-sec="1500" class="btn-quick-time px-3 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-[#00A3FF] hover:text-white text-xs font-mono font-semibold cursor-pointer">25:00</button>
+        <button type="button" data-quick-sec="3000" class="btn-quick-time px-3 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-[#00A3FF] hover:text-white text-xs font-mono font-semibold cursor-pointer">50:00</button>
+        <button type="button" data-quick-sec="900" class="btn-quick-time px-3 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-[#00A3FF] hover:text-white text-xs font-mono font-semibold cursor-pointer">15:00</button>
+        <button type="button" data-quick-sec="300" class="btn-quick-time px-3 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-[#00A3FF] hover:text-white text-xs font-mono font-semibold cursor-pointer">05:00</button>
+        <button type="button" data-quick-sec="65" class="btn-quick-time px-3 py-1 rounded-lg bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-600 hover:text-white text-xs font-mono font-semibold cursor-pointer">01:05 (測試紅字預警)</button>
+      </div>
+
+      <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
+        <button id="btn-cancel-edit-time" type="button"
+          class="px-5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-semibold text-sm hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
+          <span data-i18n="btnCancel">取消</span>
+        </button>
+        <button id="btn-apply-edit-time" type="button"
+          class="px-6 py-2 rounded-xl bg-[#00A3FF] hover:bg-[#008BDB] text-white font-semibold text-sm shadow-sm cursor-pointer">
+          <span data-i18n="btnConfirm">套用時間</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- MODAL 3: 用戶手冊 (User Manual Modal - ExamTimerX Style)            -->
+  <!-- ================================================================= -->
+  <div id="modal-manual" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-[2px] p-4">
+    <div class="bg-white dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-slate-700 rounded-2xl max-w-2xl w-full max-h-[88vh] overflow-y-auto p-6 md:p-8 shadow-xl">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-700">
+        <h3 data-i18n="manualModalTitle" class="text-xl font-bold text-slate-900 dark:text-white">PomodoroTimerX 用戶手冊</h3>
+        <button id="btn-close-manual" type="button"
+          class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center justify-center text-slate-500 cursor-pointer">
+          ✕
+        </button>
+      </div>
+
+      <div class="space-y-4 my-5 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+        <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-700">
+          <h4 class="font-bold text-slate-900 dark:text-white mb-1">1. 設計理念與蕃茄工作法流程</h4>
+          <p>本應用程式沿用 <strong>ExamTimerX</strong> 的高對比極簡卡片設計語言，專為課室投影、自修室計時、教師批改試卷及個人高效工作而設。標準循環為 <strong>25 分鐘專注 + 5 分鐘短休息</strong>，每完成 4 個蕃茄鐘後進入 <strong>15 分鐘長休息</strong>。</p>
+        </div>
+
+        <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-700">
+          <h4 class="font-bold text-slate-900 dark:text-white mb-1">2. 快速微調與視覺預警機制</h4>
+          <ul class="list-disc list-inside space-y-1">
+            <li>點擊計時器左右兩側的 <strong>- / +</strong> 圓形按鈕，可即時增減 1 分鐘。</li>
+            <li>直接<strong>點擊中央大型數字</strong>可開啟「編輯倒數時間」視窗，精確調整時、分、秒。</li>
+            <li>當專注時段剩餘時間少於或等於 <strong>1 分鐘（60 秒）</strong>時，數字會自動轉為<strong>鮮紅色警告色 (#DC2626)</strong>。</li>
+          </ul>
+        </div>
+
+        <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-700">
+          <h4 class="font-bold text-slate-900 dark:text-white mb-2">3. 鍵盤快捷鍵一覽</h4>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+            <div class="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700"><kbd class="font-mono font-bold text-[#00A3FF]">Space</kbd> 開始 / 暫停</div>
+            <div class="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700"><kbd class="font-mono font-bold text-[#00A3FF]">R</kbd> 重設當前時間</div>
+            <div class="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700"><kbd class="font-mono font-bold text-[#00A3FF]">S</kbd> 跳過當前階段</div>
+            <div class="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700"><kbd class="font-mono font-bold text-[#00A3FF]">H</kbd> 隱藏 / 顯示工具列</div>
+            <div class="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700"><kbd class="font-mono font-bold text-[#00A3FF]">F</kbd> 切換全螢幕</div>
+            <div class="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700"><kbd class="font-mono font-bold text-[#00A3FF]">1 / 2 / 3</kbd> 切換專注/短休/長休</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end pt-4 border-t border-slate-200 dark:border-slate-700">
+        <button id="btn-ok-manual" type="button"
+          class="px-6 py-2 rounded-xl bg-[#00A3FF] hover:bg-[#008BDB] text-white font-semibold text-sm cursor-pointer">
+          <span data-i18n="btnUnderstood">明白</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Application Script -->
+  <script>
+    (function () {
+      // Bilingual Dictionary
+      const I18N = {
+        zh: {
+          modeFocus: '專注時段',
+          modeShort: '短休息',
+          modeLong: '長休息',
+          timeLeft: '剩餘時間',
+          clickToEdit: '點擊數字直接編輯時間',
+          btnStart: '開始',
+          btnResume: '繼續',
+          btnStop: '停止',
+          btnReset: '重設',
+          btnSkip: '跳過',
+          infoTitle: '專注資訊',
+          btnTaskList: '待辦任務清單',
+          btnEditInfo: '設定資訊',
+          lblTask: '當前任務：',
+          lblDuration: '階段時長：',
+          lblCategory: '工作類別：',
+          lblStartTime: '開始時間：',
+          lblPhase: '當前階段：',
+          lblEndTime: '結束時間：',
+          lblCompleted: '今日已完成：',
+          lblBreakRule: '休息模式：',
+          taskQueueHeading: '待辦專注任務清單（點擊任務即可設為「當前任務」）',
+          btnAdd: '新增',
+          footerCredit: '由鍾永老師製作',
+          settingsModalTitle: '蕃茄鐘設定',
+          lblPresetTemplates: '快速場景範本：',
+          lblTaskInput: '當前任務名稱',
+          lblCategoryInput: '工作類別 / 編號',
+          lblFocusDuration: '專注時長（分鐘）',
+          lblShortDuration: '短休息（分鐘）',
+          lblLongDuration: '長休息（分鐘）',
+          lblLongInterval: '長休息間隔（輪數）',
+          lblStartClock: '開始時間（自動推算結束時間）',
+          lblSoundType: '完成提示音效',
+          lblAutoBreak: '專注結束後自動開始休息',
+          lblAutoFocus: '休息結束後自動開始下一輪專注',
+          lblInfoScale: '專注資訊卡片字型比例：',
+          btnCancel: '取消',
+          btnSave: '儲存設定',
+          editTimeModalTitle: '編輯倒數時間',
+          lblHours: '小時',
+          lblMinutes: '分鐘',
+          lblSeconds: '秒數',
+          btnConfirm: '套用時間',
+          manualModalTitle: 'PomodoroTimerX 用戶手冊',
+          btnUnderstood: '明白'
+        },
+        en: {
+          modeFocus: 'Focus',
+          modeShort: 'Short Break',
+          modeLong: 'Long Break',
+          timeLeft: 'Time Left',
+          clickToEdit: 'Click digits to edit time directly',
+          btnStart: 'Start',
+          btnResume: 'Resume',
+          btnStop: 'Stop',
+          btnReset: 'Reset',
+          btnSkip: 'Skip',
+          infoTitle: 'Focus Information',
+          btnTaskList: 'Task Queue',
+          btnEditInfo: 'Settings',
+          lblTask: 'Current Task:',
+          lblDuration: 'Phase Duration:',
+          lblCategory: 'Category / Code:',
+          lblStartTime: 'Start Time:',
+          lblPhase: 'Current Phase:',
+          lblEndTime: 'End Time:',
+          lblCompleted: 'Completed Today:',
+          lblBreakRule: 'Break Mode:',
+          taskQueueHeading: 'Focus Task Queue (Click any task to set as Current Task)',
+          btnAdd: 'Add',
+          footerCredit: 'Created by Mr. Louis Chung',
+          settingsModalTitle: 'Pomodoro Settings',
+          lblPresetTemplates: 'Quick Scenario Presets:',
+          lblTaskInput: 'Current Task Name',
+          lblCategoryInput: 'Category / Reference Code',
+          lblFocusDuration: 'Focus Duration (mins)',
+          lblShortDuration: 'Short Break (mins)',
+          lblLongDuration: 'Long Break (mins)',
+          lblLongInterval: 'Long Break Interval (cycles)',
+          lblStartClock: 'Start Time (Auto-calculates end time)',
+          lblSoundType: 'Completion Sound',
+          lblAutoBreak: 'Auto-start Break after Focus',
+          lblAutoFocus: 'Auto-start Focus after Break',
+          lblInfoScale: 'Focus Info Card Font Scale:',
+          btnCancel: 'Cancel',
+          btnSave: 'Save Settings',
+          editTimeModalTitle: 'Edit Countdown Time',
+          lblHours: 'Hours',
+          lblMinutes: 'Minutes',
+          lblSeconds: 'Seconds',
+          btnConfirm: 'Apply Time',
+          manualModalTitle: 'PomodoroTimerX User Manual',
+          btnUnderstood: 'Got It'
+        }
+      };
+
+      // Application State
+      const state = {
+        lang: 'zh',
+        dark: false,
+        appScale: 1,
+        infoScale: 1,
+        toolbarHidden: false,
+        showHHMMSS: false, // false => MM:SS, true => HH:MM:SS
+        mode: 'focus', // 'focus' | 'short' | 'long'
+        running: false,
+        focusMins: 25,
+        shortMins: 5,
+        longMins: 15,
+        totalCycles: 4,
+        currentCycle: 1,
+        completedToday: 0,
+        completedMinutesToday: 0,
+        totalSeconds: 25 * 60,
+        remainingSeconds: 25 * 60,
+        taskName: '批改 F.3 英文作文 (Paper 2)',
+        categoryName: '教學與批改 (ENG-F3)',
+        startTimeStr: '08:30',
+        soundType: 'bell',
+        autoBreak: false,
+        autoFocus: false,
+        tasks: [
+          { id: 't1', title: '批改 F.3 英文作文 (Paper 2)', pomos: 2, done: false, active: true },
+          { id: 't2', title: '設計 F.1 課後 Proofreading 工作紙', pomos: 2, done: false, active: false },
+          { id: 't3', title: '核對期中考試試卷及評分準則', pomos: 1, done: true, active: false }
+        ],
+        editHr: 0,
+        editMin: 25,
+        editSec: 0
+      };
+
+      let countdownInterval = null;
+      let audioCtx = null;
+
+      // Initialize current HH:MM as default startTimeStr
+      function initDefaultStartTime() {
+        const now = new Date();
+        const hh = String(now.getHours()).padStart(2, '0');
+        const mm = String(now.getMinutes()).padStart(2, '0');
+        state.startTimeStr = hh + ':' + mm;
+      }
+
+      // Load saved preferences safely
+      function loadSavedState() {
+        try {
+          const raw = localStorage.getItem('pomodoro_timer_x_state');
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed && typeof parsed === 'object') {
+              state.lang = parsed.lang || state.lang;
+              state.dark = Boolean(parsed.dark);
+              state.infoScale = Number(parsed.infoScale) || 1;
+              state.showHHMMSS = Boolean(parsed.showHHMMSS);
+              state.focusMins = Number(parsed.focusMins) || 25;
+              state.shortMins = Number(parsed.shortMins) || 5;
+              state.longMins = Number(parsed.longMins) || 15;
+              state.totalCycles = Number(parsed.totalCycles) || 4;
+              state.completedToday = Number(parsed.completedToday) || 0;
+              state.completedMinutesToday = Number(parsed.completedMinutesToday) || 0;
+              state.taskName = parsed.taskName || state.taskName;
+              state.categoryName = parsed.categoryName || state.categoryName;
+              state.soundType = parsed.soundType || 'bell';
+              state.autoBreak = Boolean(parsed.autoBreak);
+              state.autoFocus = Boolean(parsed.autoFocus);
+              if (Array.isArray(parsed.tasks) && parsed.tasks.length > 0) {
+                state.tasks = parsed.tasks;
+              }
+              state.totalSeconds = state.focusMins * 60;
+              state.remainingSeconds = state.totalSeconds;
+            }
+          }
+        } catch (err) {
+          // Ignore storage errors in sandboxed iframe
+        }
+      }
+
+      function saveState() {
+        try {
+          localStorage.setItem('pomodoro_timer_x_state', JSON.stringify({
+            lang: state.lang,
+            dark: state.dark,
+            infoScale: state.infoScale,
+            showHHMMSS: state.showHHMMSS,
+            focusMins: state.focusMins,
+            shortMins: state.shortMins,
+            longMins: state.longMins,
+            totalCycles: state.totalCycles,
+            completedToday: state.completedToday,
+            completedMinutesToday: state.completedMinutesToday,
+            taskName: state.taskName,
+            categoryName: state.categoryName,
+            soundType: state.soundType,
+            autoBreak: state.autoBreak,
+            autoFocus: state.autoFocus,
+            tasks: state.tasks
+          }));
+        } catch (err) {
+          // Ignore storage errors
+        }
+      }
+
+      // Synthesized Web Audio Cues (No external MP3 required)
+      function playAlarmSound(typeOverride) {
+        const type = typeOverride || state.soundType;
+        if (type === 'mute') return;
+        try {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (!AudioContextClass) return;
+          if (!audioCtx) audioCtx = new AudioContextClass();
+          if (audioCtx.state === 'suspended') audioCtx.resume();
+
+          const now = audioCtx.currentTime;
+          if (type === 'bell') {
+            // Classic Exam Hall Dual Chime (Ding-Dong)
+            const freqs = [783.99, 659.25, 783.99, 523.25];
+            freqs.forEach((f, idx) => {
+              const osc = audioCtx.createOscillator();
+              const gain = audioCtx.createGain();
+              osc.type = 'sine';
+              osc.frequency.setValueAtTime(f, now + idx * 0.32);
+              gain.gain.setValueAtTime(0.001, now + idx * 0.32);
+              gain.gain.exponentialRampToValueAtTime(0.28, now + idx * 0.32 + 0.03);
+              gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.32 + 0.65);
+              osc.connect(gain);
+              gain.connect(audioCtx.destination);
+              osc.start(now + idx * 0.32);
+              osc.stop(now + idx * 0.32 + 0.68);
+            });
+          } else if (type === 'digital') {
+            // Crisp Digital Triple Beep
+            for (let i = 0; i < 3; i++) {
+              const osc = audioCtx.createOscillator();
+              const gain = audioCtx.createGain();
+              osc.type = 'triangle';
+              osc.frequency.setValueAtTime(1046.5, now + i * 0.18);
+              gain.gain.setValueAtTime(0.22, now + i * 0.18);
+              gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.18 + 0.12);
+              osc.connect(gain);
+              gain.connect(audioCtx.destination);
+              osc.start(now + i * 0.18);
+              osc.stop(now + i * 0.18 + 0.13);
+            }
+          } else if (type === 'chord') {
+            // Warm Major 7th Arpeggio Chord
+            const chord = [523.25, 659.25, 783.99, 987.77];
+            chord.forEach((f, idx) => {
+              const osc = audioCtx.createOscillator();
+              const gain = audioCtx.createGain();
+              osc.type = 'sine';
+              osc.frequency.setValueAtTime(f, now + idx * 0.12);
+              gain.gain.setValueAtTime(0.18, now + idx * 0.12);
+              gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.12 + 0.9);
+              osc.connect(gain);
+              gain.connect(audioCtx.destination);
+              osc.start(now + idx * 0.12);
+              osc.stop(now + idx * 0.12 + 0.95);
+            });
+          }
+        } catch (e) {
+          // Ignore audio error if blocked
+        }
+      }
+
+      // Show Toast Notification
+      let toastTimer = null;
+      function showToast(msg) {
+        const banner = document.getElementById('toast-banner');
+        const textEl = document.getElementById('toast-message');
+        if (!banner || !textEl) return;
+        textEl.textContent = msg;
+        banner.classList.remove('hidden');
+        banner.classList.add('flex');
+        if (toastTimer) clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => {
+          banner.classList.add('hidden');
+          banner.classList.remove('flex');
+        }, 3600);
+      }
+
+      // Format Seconds into MM:SS or HH:MM:SS
+      function formatSeconds(sec) {
+        const safe = Math.max(0, Math.floor(sec));
+        const hrs = Math.floor(safe / 3600);
+        const mins = Math.floor((safe % 3600) / 60);
+        const secs = safe % 60;
+        if (state.showHHMMSS || hrs > 0) {
+          return String(hrs).padStart(2, '0') + ':' + String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+        }
+        const totalMins = Math.floor(safe / 60);
+        return String(totalMins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+      }
+
+      // Add minutes to HH:MM string
+      function addMinutesToClock(hhmm, addMins) {
+        const parts = (hhmm || '08:30').split(':');
+        let h = parseInt(parts[0], 10);
+        let m = parseInt(parts[1], 10);
+        if (isNaN(h) || isNaN(m)) {
+          h = 8;
+          m = 30;
+        }
+        const total = (h * 60 + m + Math.round(addMins)) % (24 * 60);
+        const nh = Math.floor((total + 1440) % 1440 / 60);
+        const nm = (total + 1440) % 60;
+        return String(nh).padStart(2, '0') + ':' + String(nm).padStart(2, '0');
+      }
+
+      // Switch Phase ('focus' | 'short' | 'long')
+      function setPhase(newMode, autoStartNext) {
+        stopTimer();
+        state.mode = newMode;
+        if (newMode === 'focus') {
+          state.totalSeconds = state.focusMins * 60;
+        } else if (newMode === 'short') {
+          state.totalSeconds = state.shortMins * 60;
+        } else {
+          state.totalSeconds = state.longMins * 60;
+        }
+        state.remainingSeconds = state.totalSeconds;
+        renderAll();
+        if (autoStartNext) {
+          startTimer();
+        }
+      }
+
+      // Start Countdown
+      function startTimer() {
+        if (state.running) return;
+        if (state.remainingSeconds <= 0) {
+          state.remainingSeconds = state.totalSeconds;
+        }
+        state.running = true;
+        if (countdownInterval) clearInterval(countdownInterval);
+        countdownInterval = setInterval(() => {
+          if (state.remainingSeconds > 0) {
+            state.remainingSeconds -= 1;
+            renderTimerReadout();
+          } else {
+            handlePhaseComplete();
+          }
+        }, 1000);
+        renderControls();
+      }
+
+      // Stop / Pause Countdown
+      function stopTimer() {
+        state.running = false;
+        if (countdownInterval) {
+          clearInterval(countdownInterval);
+          countdownInterval = null;
+        }
+        renderControls();
+      }
+
+      // Reset Countdown
+      function resetTimer() {
+        stopTimer();
+        state.remainingSeconds = state.totalSeconds;
+        renderAll();
+      }
+
+      // Handle Phase Completion
+      function handlePhaseComplete() {
+        stopTimer();
+        playAlarmSound();
+        if (state.mode === 'focus') {
+          state.completedToday += 1;
+          state.completedMinutesToday += state.focusMins;
+          saveState();
+          if (state.currentCycle >= state.totalCycles) {
+            showToast(state.lang === 'zh'
+              ? '已完成第 ' + state.currentCycle + ' 個蕃茄鐘！進入長休息時段。'
+              : 'Completed Pomodoro #' + state.currentCycle + '! Starting Long Break.');
+            setPhase('long', state.autoBreak);
+          } else {
+            showToast(state.lang === 'zh'
+              ? '專注時段完成！進入短休息時段。'
+              : 'Focus session complete! Starting Short Break.');
+            setPhase('short', state.autoBreak);
+          }
+        } else {
+          // Completed a break
+          if (state.mode === 'long') {
+            state.currentCycle = 1;
+          } else {
+            state.currentCycle = Math.min(state.totalCycles, state.currentCycle + 1);
+          }
+          showToast(state.lang === 'zh'
+            ? '休息結束！準備開始下一輪專注時段。'
+            : 'Break finished! Ready for the next Focus session.');
+          setPhase('focus', state.autoFocus);
+        }
+      }
+
+      // Skip Current Phase Manually
+      function skipPhase() {
+        stopTimer();
+        if (state.mode === 'focus') {
+          if (state.currentCycle >= state.totalCycles) {
+            setPhase('long', false);
+          } else {
+            setPhase('short', false);
+          }
+        } else {
+          if (state.mode === 'long') {
+            state.currentCycle = 1;
+          } else {
+            state.currentCycle = Math.min(state.totalCycles, state.currentCycle + 1);
+          }
+          setPhase('focus', false);
+        }
+      }
+
+      // Render Timer Digits, Warning Red Color, and Progress Bar
+      function renderTimerReadout() {
+        const displayEl = document.getElementById('timer-display');
+        const progressEl = document.getElementById('timer-progress-bar');
+        const warnPill = document.getElementById('warning-indicator-pill');
+
+        if (displayEl) {
+          displayEl.textContent = formatSeconds(state.remainingSeconds);
+          // ExamTimerX Red Warning state when remaining time <= 60 seconds (or <= 5 mins if total >= 20m & <= 60s in Pomodoro)
+          const isWarn = state.remainingSeconds > 0 && state.remainingSeconds <= 60;
+          if (isWarn) {
+            displayEl.classList.remove('text-[#0F172A]', 'dark:text-[#F8FAFC]');
+            displayEl.classList.add('text-[#DC2626]', 'dark:text-red-500');
+            if (warnPill) warnPill.classList.remove('hidden');
+          } else {
+            displayEl.classList.remove('text-[#DC2626]', 'dark:text-red-500');
+            displayEl.classList.add('text-[#0F172A]', 'dark:text-[#F8FAFC]');
+            if (warnPill) warnPill.classList.add('hidden');
+          }
+        }
+
+        if (progressEl) {
+          const pct = state.totalSeconds > 0
+            ? Math.min(100, Math.max(0, ((state.totalSeconds - state.remainingSeconds) / state.totalSeconds) * 100))
+            : 0;
+          progressEl.style.width = pct.toFixed(1) + '%';
+        }
+      }
+
+      // Render Start / Stop / Mode Tabs
+      function renderControls() {
+        const dict = I18N[state.lang];
+        const btnStart = document.getElementById('btn-start');
+        const btnStop = document.getElementById('btn-stop');
+
+        if (btnStart && btnStop) {
+          if (state.running) {
+            btnStart.disabled = true;
+            btnStart.className = 'bg-[#F1F5F9] dark:bg-slate-800/90 text-slate-400 dark:text-slate-500 border border-slate-200/80 dark:border-slate-700/60 font-semibold px-7 py-2.5 rounded-xl transition-all cursor-not-allowed min-w-[104px]';
+            btnStop.disabled = false;
+            btnStop.className = 'bg-amber-500 hover:bg-amber-600 text-white font-semibold px-7 py-2.5 rounded-xl shadow-sm transition-all active:scale-95 cursor-pointer min-w-[104px]';
+          } else {
+            btnStart.disabled = false;
+            btnStart.className = 'bg-[#00A3FF] hover:bg-[#008BDB] text-white font-semibold px-7 py-2.5 rounded-xl shadow-sm transition-all active:scale-95 cursor-pointer min-w-[104px]';
+            const startSpan = btnStart.querySelector('span');
+            if (startSpan) {
+              startSpan.textContent = (state.remainingSeconds < state.totalSeconds && state.remainingSeconds > 0)
+                ? dict.btnResume
+                : dict.btnStart;
+            }
+            btnStop.disabled = true;
+            btnStop.className = 'bg-[#F1F5F9] dark:bg-slate-800/90 text-slate-400 dark:text-slate-500 border border-slate-200/80 dark:border-slate-700/60 font-semibold px-7 py-2.5 rounded-xl transition-all cursor-not-allowed min-w-[104px]';
+          }
+        }
+
+        // Mode Tabs styling
+        const modes = [
+          { id: 'tab-focus', key: 'focus' },
+          { id: 'tab-short', key: 'short' },
+          { id: 'tab-long', key: 'long' }
+        ];
+        modes.forEach((m) => {
+          const el = document.getElementById(m.id);
+          if (!el) return;
+          if (state.mode === m.key) {
+            el.className = 'px-4 py-1.5 rounded-lg text-sm font-semibold transition-all cursor-pointer bg-[#00A3FF] text-white shadow-sm';
+          } else {
+            el.className = 'px-4 py-1.5 rounded-lg text-sm font-semibold transition-all cursor-pointer text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white';
+          }
+        });
+      }
+
+      // Render Cycle Dots & Info Grid
+      function renderInfoAndCycles() {
+        const dict = I18N[state.lang];
+        const dotsContainer = document.getElementById('cycle-dots-container');
+        if (dotsContainer) {
+          dotsContainer.innerHTML = '';
+          for (let i = 1; i <= state.totalCycles; i++) {
+            const dot = document.createElement('button');
+            dot.type = 'button';
+            dot.title = (state.lang === 'zh' ? '切換至第 ' + i + ' 輪' : 'Switch to Cycle #' + i);
+            const isCurrent = i === state.currentCycle;
+            const isPast = i < state.currentCycle;
+            dot.className = isCurrent
+              ? 'w-6 h-2.5 rounded-full bg-[#00A3FF] transition-all cursor-pointer'
+              : isPast
+                ? 'w-2.5 h-2.5 rounded-full bg-sky-400/70 dark:bg-sky-500/60 transition-all cursor-pointer'
+                : 'w-2.5 h-2.5 rounded-full bg-slate-200 dark:bg-slate-700 transition-all cursor-pointer';
+            dot.addEventListener('click', () => {
+              state.currentCycle = i;
+              renderInfoAndCycles();
+            });
+            dotsContainer.appendChild(dot);
+          }
+        }
+
+        const cycleBadge = document.getElementById('cycle-badge-text');
+        if (cycleBadge) {
+          cycleBadge.textContent = state.lang === 'zh'
+            ? '第 ' + state.currentCycle + ' / ' + state.totalCycles + ' 個蕃茄鐘'
+            : 'Pomodoro ' + state.currentCycle + ' of ' + state.totalCycles;
+        }
+
+        const formatBtn = document.getElementById('btn-toggle-format');
+        if (formatBtn) {
+          formatBtn.textContent = state.showHHMMSS ? 'HH:MM:SS' : 'MM:SS';
+        }
+
+        const headerBadge = document.getElementById('header-mode-badge');
+        if (headerBadge) {
+          if (state.mode === 'focus') {
+            headerBadge.textContent = dict.modeFocus;
+          } else if (state.mode === 'short') {
+            headerBadge.textContent = dict.modeShort;
+          } else {
+            headerBadge.textContent = dict.modeLong;
+          }
+        }
+
+        // Populate 4x2 Info Card Grid
+        const curPhaseMins = Math.round(state.totalSeconds / 60);
+        const singleEnd = addMinutesToClock(state.startTimeStr, curPhaseMins);
+        const fullCycleMins = (state.focusMins * state.totalCycles) + (state.shortMins * Math.max(0, state.totalCycles - 1)) + state.longMins;
+        const fullCycleEnd = addMinutesToClock(state.startTimeStr, fullCycleMins);
+
+        const elTask = document.getElementById('info-task');
+        const elDur = document.getElementById('info-duration');
+        const elCat = document.getElementById('info-category');
+        const elStart = document.getElementById('info-start-time');
+        const elPhase = document.getElementById('info-phase');
+        const elEnd = document.getElementById('info-end-time');
+        const elComp = document.getElementById('info-completed');
+        const elBreak = document.getElementById('info-break-rule');
+
+        if (elTask) elTask.textContent = state.taskName;
+        if (elDur) {
+          elDur.textContent = state.lang === 'zh'
+            ? curPhaseMins + ' 分鐘'
+            : curPhaseMins + ' mins';
+        }
+        if (elCat) elCat.textContent = state.categoryName;
+        if (elStart) elStart.textContent = state.startTimeStr;
+        if (elPhase) {
+          const modeLabel = state.mode === 'focus' ? dict.modeFocus : state.mode === 'short' ? dict.modeShort : dict.modeLong;
+          elPhase.textContent = state.lang === 'zh'
+            ? modeLabel + ' (第 ' + state.currentCycle + '/' + state.totalCycles + ' 輪)'
+            : modeLabel + ' (#' + state.currentCycle + '/' + state.totalCycles + ')';
+        }
+        if (elEnd) {
+          elEnd.textContent = state.lang === 'zh'
+            ? singleEnd + ' (全輪 ' + fullCycleEnd + ')'
+            : singleEnd + ' (Cycle ' + fullCycleEnd + ')';
+        }
+        if (elComp) {
+          elComp.textContent = state.lang === 'zh'
+            ? state.completedToday + ' 個蕃茄 (' + state.completedMinutesToday + ' 分鐘)'
+            : state.completedToday + ' Pomodoros (' + state.completedMinutesToday + 'm)';
+        }
+        if (elBreak) {
+          elBreak.textContent = state.lang === 'zh'
+            ? '短休 ' + state.shortMins + ' 分鐘 / 長休 ' + state.longMins + ' 分鐘'
+            : 'Short ' + state.shortMins + 'm / Long ' + state.longMins + 'm';
+        }
+      }
+
+      // Render Task Queue List
+      function renderTasks() {
+        const listEl = document.getElementById('task-list-container');
+        const badgeEl = document.getElementById('task-count-badge');
+        if (!listEl) return;
+
+        const remainingCount = state.tasks.filter((t) => !t.done).length;
+        if (badgeEl) badgeEl.textContent = String(remainingCount);
+
+        listEl.innerHTML = '';
+        state.tasks.forEach((task) => {
+          const row = document.createElement('div');
+          row.className = 'flex items-center justify-between gap-2 p-2.5 rounded-xl border transition-colors ' +
+            (task.active
+              ? 'border-[#00A3FF] bg-sky-50/60 dark:bg-sky-950/30'
+              : 'border-slate-200/80 dark:border-slate-700/60 bg-slate-50/60 dark:bg-slate-900/40');
+
+          const left = document.createElement('div');
+          left.className = 'flex items-center gap-2.5 flex-1 min-w-0';
+
+          const chk = document.createElement('input');
+          chk.type = 'checkbox';
+          chk.checked = Boolean(task.done);
+          chk.className = 'w-4 h-4 accent-[#00A3FF] cursor-pointer shrink-0';
+          chk.addEventListener('change', () => {
+            task.done = chk.checked;
+            saveState();
+            renderTasks();
+          });
+
+          const titleBtn = document.createElement('button');
+          titleBtn.type = 'button';
+          titleBtn.className = 'text-left text-sm font-medium truncate flex-1 cursor-pointer ' +
+            (task.done ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-800 dark:text-slate-100 hover:text-[#00A3FF]');
+          titleBtn.textContent = task.title;
+          titleBtn.addEventListener('click', () => {
+            state.tasks.forEach((t) => { t.active = (t.id === task.id); });
+            state.taskName = task.title;
+            saveState();
+            renderInfoAndCycles();
+            renderTasks();
+          });
+
+          left.appendChild(chk);
+          left.appendChild(titleBtn);
+
+          const right = document.createElement('div');
+          right.className = 'flex items-center gap-2 shrink-0';
+
+          const pomoTag = document.createElement('span');
+          pomoTag.className = 'text-xs font-mono px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300';
+          pomoTag.textContent = task.pomos + ' 🍅';
+
+          const delBtn = document.createElement('button');
+          delBtn.type = 'button';
+          delBtn.className = 'w-6 h-6 rounded-md hover:bg-rose-100 dark:hover:bg-rose-950/60 text-slate-400 hover:text-rose-600 flex items-center justify-center text-xs cursor-pointer';
+          delBtn.textContent = '✕';
+          delBtn.addEventListener('click', () => {
+            state.tasks = state.tasks.filter((t) => t.id !== task.id);
+            saveState();
+            renderTasks();
+          });
+
+          right.appendChild(pomoTag);
+          right.appendChild(delBtn);
+
+          row.appendChild(left);
+          row.appendChild(right);
+          listEl.appendChild(row);
+        });
+      }
+
+      // Apply Theme, Scales & I18N Labels
+      function renderThemeAndLang() {
+        const root = document.documentElement;
+        if (state.dark) {
+          root.classList.add('dark');
+          document.getElementById('icon-sun')?.classList.remove('hidden');
+          document.getElementById('icon-moon')?.classList.add('hidden');
+        } else {
+          root.classList.remove('dark');
+          document.getElementById('icon-sun')?.classList.add('hidden');
+          document.getElementById('icon-moon')?.classList.remove('hidden');
+        }
+
+        root.style.setProperty('--app-scale', String(state.appScale));
+        root.style.setProperty('--info-scale', String(state.infoScale));
+
+        const langBtn = document.getElementById('btn-lang');
+        if (langBtn) {
+          langBtn.textContent = state.lang === 'zh' ? '繁' : 'EN';
+        }
+
+        const dict = I18N[state.lang];
+        document.querySelectorAll('[data-i18n]').forEach((el) => {
+          const key = el.getAttribute('data-i18n');
+          if (key && dict[key]) {
+            el.textContent = dict[key];
+          }
+        });
+
+        // Highlight active info scale button inside settings modal
+        document.querySelectorAll('.btn-info-scale').forEach((btn) => {
+          const val = parseFloat(btn.getAttribute('data-info-scale') || '1');
+          if (Math.abs(val - state.infoScale) < 0.01) {
+            btn.className = 'btn-info-scale py-2 rounded-xl border border-[#00A3FF] bg-[#00A3FF] text-white font-semibold text-xs transition-colors cursor-pointer';
+          } else {
+            btn.className = 'btn-info-scale py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors cursor-pointer';
+          }
+        });
+      }
+
+      function renderAll() {
+        renderThemeAndLang();
+        renderTimerReadout();
+        renderControls();
+        renderInfoAndCycles();
+        renderTasks();
+      }
+
+      // Live System Clock
+      function updateSystemClock() {
+        const el = document.getElementById('system-clock');
+        if (!el) return;
+        const now = new Date();
+        const hh = String(now.getHours()).padStart(2, '0');
+        const mm = String(now.getMinutes()).padStart(2, '0');
+        const ss = String(now.getSeconds()).padStart(2, '0');
+        el.textContent = hh + ':' + mm + ':' + ss;
+      }
+
+      // Toolbar Hide / Show Toggle
+      function toggleToolbar(forceState) {
+        state.toolbarHidden = typeof forceState === 'boolean' ? forceState : !state.toolbarHidden;
+        const headerEl = document.getElementById('header-toolbar');
+        const showBtn = document.getElementById('btn-show-toolbar');
+        if (state.toolbarHidden) {
+          headerEl?.classList.add('hidden');
+          showBtn?.classList.remove('hidden');
+        } else {
+          headerEl?.classList.remove('hidden');
+          showBtn?.classList.add('hidden');
+        }
+      }
+
+      // Settings Modal Open / Save
+      function openSettingsModal() {
+        document.getElementById('input-setting-task').value = state.taskName;
+        document.getElementById('input-setting-category').value = state.categoryName;
+        document.getElementById('input-setting-focus').value = state.focusMins;
+        document.getElementById('input-setting-short').value = state.shortMins;
+        document.getElementById('input-setting-long').value = state.longMins;
+        document.getElementById('input-setting-cycles').value = state.totalCycles;
+        document.getElementById('input-setting-start-time').value = state.startTimeStr;
+        document.getElementById('select-setting-sound').value = state.soundType;
+        document.getElementById('chk-auto-break').checked = state.autoBreak;
+        document.getElementById('chk-auto-focus').checked = state.autoFocus;
+
+        const modal = document.getElementById('modal-settings');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      }
+
+      function closeSettingsModal() {
+        const modal = document.getElementById('modal-settings');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+
+      function saveSettingsFromModal() {
+        const newTask = document.getElementById('input-setting-task').value.trim();
+        const newCat = document.getElementById('input-setting-category').value.trim();
+        const fMins = Math.min(180, Math.max(1, parseInt(document.getElementById('input-setting-focus').value, 10) || 25));
+        const sMins = Math.min(60, Math.max(1, parseInt(document.getElementById('input-setting-short').value, 10) || 5));
+        const lMins = Math.min(90, Math.max(1, parseInt(document.getElementById('input-setting-long').value, 10) || 15));
+        const cyc = Math.min(10, Math.max(2, parseInt(document.getElementById('input-setting-cycles').value, 10) || 4));
+        const startClock = document.getElementById('input-setting-start-time').value || '08:30';
+
+        if (newTask) state.taskName = newTask;
+        if (newCat) state.categoryName = newCat;
+        state.focusMins = fMins;
+        state.shortMins = sMins;
+        state.longMins = lMins;
+        state.totalCycles = cyc;
+        if (state.currentCycle > cyc) state.currentCycle = 1;
+        state.startTimeStr = startClock;
+        state.soundType = document.getElementById('select-setting-sound').value;
+        state.autoBreak = document.getElementById('chk-auto-break').checked;
+        state.autoFocus = document.getElementById('chk-auto-focus').checked;
+
+        // Update totalSeconds if not running
+        if (!state.running) {
+          if (state.mode === 'focus') state.totalSeconds = state.focusMins * 60;
+          else if (state.mode === 'short') state.totalSeconds = state.shortMins * 60;
+          else state.totalSeconds = state.longMins * 60;
+          state.remainingSeconds = state.totalSeconds;
+        }
+
+        saveState();
+        renderAll();
+        closeSettingsModal();
+      }
+
+      // Edit Time Modal Open / Apply
+      function openEditTimeModal() {
+        const sec = state.remainingSeconds;
+        state.editHr = Math.floor(sec / 3600);
+        state.editMin = Math.floor((sec % 3600) / 60);
+        state.editSec = sec % 60;
+        renderEditTimeDigits();
+        const modal = document.getElementById('modal-edit-time');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      }
+
+      function closeEditTimeModal() {
+        const modal = document.getElementById('modal-edit-time');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+
+      function renderEditTimeDigits() {
+        document.getElementById('edit-hr-val').textContent = String(state.editHr).padStart(2, '0');
+        document.getElementById('edit-min-val').textContent = String(state.editMin).padStart(2, '0');
+        document.getElementById('edit-sec-val').textContent = String(state.editSec).padStart(2, '0');
+      }
+
+      // Bind All Interactive Event Listeners
+      function bindEvents() {
+        // Toolbar buttons
+        document.getElementById('btn-font-dec').addEventListener('click', () => {
+          state.appScale = Math.max(0.85, +(state.appScale - 0.05).toFixed(2));
+          renderThemeAndLang();
+        });
+        document.getElementById('btn-font-inc').addEventListener('click', () => {
+          state.appScale = Math.min(1.25, +(state.appScale + 0.05).toFixed(2));
+          renderThemeAndLang();
+        });
+        document.getElementById('btn-theme').addEventListener('click', () => {
+          state.dark = !state.dark;
+          saveState();
+          renderThemeAndLang();
+        });
+        document.getElementById('btn-settings').addEventListener('click', openSettingsModal);
+        document.getElementById('btn-quick-edit-info').addEventListener('click', openSettingsModal);
+        document.getElementById('btn-lang').addEventListener('click', () => {
+          state.lang = state.lang === 'zh' ? 'en' : 'zh';
+          saveState();
+          renderAll();
+        });
+        document.getElementById('btn-fullscreen').addEventListener('click', () => {
+          try {
+            if (!document.fullscreenElement) {
+              document.documentElement.requestFullscreen();
+            } else {
+              document.exitFullscreen();
+            }
+          } catch (e) {
+            showToast(state.lang === 'zh' ? '目前預覽環境不支援全螢幕切換' : 'Fullscreen not supported in this frame');
+          }
+        });
+        document.getElementById('btn-manual').addEventListener('click', () => {
+          const m = document.getElementById('modal-manual');
+          m.classList.remove('hidden');
+          m.classList.add('flex');
+        });
+        document.getElementById('btn-hide-toolbar').addEventListener('click', () => toggleToolbar(true));
+        document.getElementById('btn-show-toolbar').addEventListener('click', () => toggleToolbar(false));
+
+        // Phase Mode Tabs
+        document.getElementById('tab-focus').addEventListener('click', () => setPhase('focus', false));
+        document.getElementById('tab-short').addEventListener('click', () => setPhase('short', false));
+        document.getElementById('tab-long').addEventListener('click', () => setPhase('long', false));
+
+        // Format Toggle (MM:SS vs HH:MM:SS)
+        document.getElementById('btn-toggle-format').addEventListener('click', () => {
+          state.showHHMMSS = !state.showHHMMSS;
+          saveState();
+          renderAll();
+        });
+
+        // +/- 1 Minute Circular Adjustments
+        document.getElementById('btn-minus-time').addEventListener('click', () => {
+          state.remainingSeconds = Math.max(0, state.remainingSeconds - 60);
+          if (state.remainingSeconds > state.totalSeconds) state.totalSeconds = state.remainingSeconds;
+          renderTimerReadout();
+        });
+        document.getElementById('btn-plus-time').addEventListener('click', () => {
+          state.remainingSeconds = Math.min(36000, state.remainingSeconds + 60);
+          if (state.remainingSeconds > state.totalSeconds) state.totalSeconds = state.remainingSeconds;
+          renderTimerReadout();
+        });
+
+        // Click Digits -> Open Edit Time Modal
+        document.getElementById('btn-edit-time-trigger').addEventListener('click', openEditTimeModal);
+
+        // Start / Stop / Reset / Skip Buttons
+        document.getElementById('btn-start').addEventListener('click', startTimer);
+        document.getElementById('btn-stop').addEventListener('click', stopTimer);
+        document.getElementById('btn-reset').addEventListener('click', resetTimer);
+        document.getElementById('btn-skip').addEventListener('click', skipPhase);
+
+        // Task Drawer Toggle & Add New Task
+        document.getElementById('btn-toggle-tasks').addEventListener('click', () => {
+          const drawer = document.getElementById('task-drawer');
+          drawer.classList.toggle('hidden');
+        });
+
+        function handleAddNewTask() {
+          const input = document.getElementById('input-new-task');
+          const sel = document.getElementById('select-new-task-pomos');
+          const title = input.value.trim();
+          if (!title) return;
+          const pomos = parseInt(sel.value, 10) || 1;
+          state.tasks.forEach((t) => { t.active = false; });
+          state.tasks.unshift({
+            id: 't_' + Date.now(),
+            title: title,
+            pomos: pomos,
+            done: false,
+            active: true
+          });
+          state.taskName = title;
+          input.value = '';
+          saveState();
+          renderInfoAndCycles();
+          renderTasks();
+        }
+
+        document.getElementById('btn-add-task').addEventListener('click', handleAddNewTask);
+        document.getElementById('input-new-task').addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') handleAddNewTask();
+        });
+
+        // Settings Modal Controls
+        document.getElementById('btn-close-settings').addEventListener('click', closeSettingsModal);
+        document.getElementById('btn-cancel-settings').addEventListener('click', closeSettingsModal);
+        document.getElementById('btn-save-settings').addEventListener('click', saveSettingsFromModal);
+        document.getElementById('btn-test-sound').addEventListener('click', () => {
+          const chosen = document.getElementById('select-setting-sound').value;
+          playAlarmSound(chosen);
+        });
+
+        // Focus Duration Preset Buttons in Settings Modal
+        document.querySelectorAll('.btn-focus-preset').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const val = parseInt(btn.getAttribute('data-focus-preset'), 10);
+            if (val) document.getElementById('input-setting-focus').value = val;
+          });
+        });
+
+        // Scenario Preset Templates in Settings Modal
+        document.querySelectorAll('.btn-scenario-preset').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const tpl = btn.getAttribute('data-template');
+            if (tpl === 'marking') {
+              document.getElementById('input-setting-task').value = '批改試卷 / 英文作文';
+              document.getElementById('input-setting-category').value = '教學與批改 (ENG)';
+              document.getElementById('input-setting-focus').value = 25;
+              document.getElementById('input-setting-short').value = 5;
+              document.getElementById('input-setting-long').value = 15;
+            } else if (tpl === 'prep') {
+              document.getElementById('input-setting-task').value = '備課與課後工作紙設計';
+              document.getElementById('input-setting-category').value = '教材設計 (CURR)';
+              document.getElementById('input-setting-focus').value = 45;
+              document.getElementById('input-setting-short').value = 10;
+              document.getElementById('input-setting-long').value = 20;
+            } else if (tpl === 'study') {
+              document.getElementById('input-setting-task').value = '課室自修與試卷溫習';
+              document.getElementById('input-setting-category').value = '自修溫習 (STUDY)';
+              document.getElementById('input-setting-focus').value = 50;
+              document.getElementById('input-setting-short').value = 10;
+              document.getElementById('input-setting-long').value = 20;
+            } else if (tpl === 'drill') {
+              document.getElementById('input-setting-task').value = '隨堂限時閱讀 / 語法練習';
+              document.getElementById('input-setting-category').value = '課堂練習 (DRILL)';
+              document.getElementById('input-setting-focus').value = 15;
+              document.getElementById('input-setting-short').value = 3;
+              document.getElementById('input-setting-long').value = 10;
+            }
+          });
+        });
+
+        // Info Card Font Scale Buttons
+        document.querySelectorAll('.btn-info-scale').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const sc = parseFloat(btn.getAttribute('data-info-scale') || '1');
+            state.infoScale = sc;
+            saveState();
+            renderThemeAndLang();
+          });
+        });
+
+        // Edit Time Modal Steppers
+        document.getElementById('btn-close-edit-time').addEventListener('click', closeEditTimeModal);
+        document.getElementById('btn-cancel-edit-time').addEventListener('click', closeEditTimeModal);
+        document.getElementById('btn-hr-inc').addEventListener('click', () => {
+          state.editHr = (state.editHr + 1) % 10;
+          renderEditTimeDigits();
+        });
+        document.getElementById('btn-hr-dec').addEventListener('click', () => {
+          state.editHr = (state.editHr + 9) % 10;
+          renderEditTimeDigits();
+        });
+        document.getElementById('btn-min-inc').addEventListener('click', () => {
+          state.editMin = (state.editMin + 1) % 60;
+          renderEditTimeDigits();
+        });
+        document.getElementById('btn-min-dec').addEventListener('click', () => {
+          state.editMin = (state.editMin + 59) % 60;
+          renderEditTimeDigits();
+        });
+        document.getElementById('btn-sec-inc').addEventListener('click', () => {
+          state.editSec = (state.editSec + 5) % 60;
+          renderEditTimeDigits();
+        });
+        document.getElementById('btn-sec-dec').addEventListener('click', () => {
+          state.editSec = (state.editSec + 55) % 60;
+          renderEditTimeDigits();
+        });
+
+        document.querySelectorAll('.btn-quick-time').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const total = parseInt(btn.getAttribute('data-quick-sec'), 10) || 1500;
+            state.editHr = Math.floor(total / 3600);
+            state.editMin = Math.floor((total % 3600) / 60);
+            state.editSec = total % 60;
+            renderEditTimeDigits();
+          });
+        });
+
+        document.getElementById('btn-apply-edit-time').addEventListener('click', () => {
+          const newTotal = state.editHr * 3600 + state.editMin * 60 + state.editSec;
+          if (newTotal > 0) {
+            state.totalSeconds = newTotal;
+            state.remainingSeconds = newTotal;
+            renderAll();
+          }
+          closeEditTimeModal();
+        });
+
+        // User Manual Modal Close
+        function closeManualModal() {
+          const m = document.getElementById('modal-manual');
+          m.classList.add('hidden');
+          m.classList.remove('flex');
+        }
+        document.getElementById('btn-close-manual').addEventListener('click', closeManualModal);
+        document.getElementById('btn-ok-manual').addEventListener('click', closeManualModal);
+
+        // Global Keyboard Shortcuts (ExamTimerX 'H' + Pomodoro shortcuts)
+        window.addEventListener('keydown', (e) => {
+          const tag = (e.target && e.target.tagName) ? e.target.tagName.toUpperCase() : '';
+          if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+          if (e.key === 'h' || e.key === 'H') {
+            e.preventDefault();
+            toggleToolbar();
+          } else if (e.code === 'Space') {
+            e.preventDefault();
+            if (state.running) stopTimer();
+            else startTimer();
+          } else if (e.key === 'r' || e.key === 'R') {
+            e.preventDefault();
+            resetTimer();
+          } else if (e.key === 's' || e.key === 'S') {
+            e.preventDefault();
+            skipPhase();
+          } else if (e.key === '1') {
+            setPhase('focus', false);
+          } else if (e.key === '2') {
+            setPhase('short', false);
+          } else if (e.key === '3') {
+            setPhase('long', false);
+          }
+        });
+      }
+
+      // Initialize App on Load
+      window.addEventListener('DOMContentLoaded', () => {
+        initDefaultStartTime();
+        loadSavedState();
+        bindEvents();
+        updateSystemClock();
+        setInterval(updateSystemClock, 1000);
+        renderAll();
+      });
+    })();
+  </script>
+</body>
+</html>
